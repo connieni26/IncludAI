@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Studio — Transition Translator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <div class="nav-logo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 2a2.5 2.5 0 0 0-2.5 2.5v.5a2.5 2.5 0 0 0-2.5 2.5c0 .6.2 1.2.5 1.6A2.5 2.5 0 0 0 2 11.5 2.5 2.5 0 0 0 4.5 14a2.5 2.5 0 0 0 2 4.4A2.5 2.5 0 0 0 9 21a2.5 2.5 0 0 0 2.5-2.5v-14A2.5 2.5 0 0 0 9.5 2Z"/><path d="M14.5 2a2.5 2.5 0 0 1 2.5 2.5v.5a2.5 2.5 0 0 1 2.5 2.5c0 .6-.2 1.2-.5 1.6a2.5 2.5 0 0 1 1 3.4A2.5 2.5 0 0 1 19.5 16a2.5 2.5 0 0 1-2 3.4A2.5 2.5 0 0 1 15 21a2.5 2.5 0 0 1-2.5-2.5v-14A2.5 2.5 0 0 1 14.5 2Z"/></svg>
+      </div>
+      <span>Transition Translator</span>
+    </div>
+    <div class="nav-links">
+      <a href="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Home</a>
+      <a href="profiles.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Profiles</a>
+      <a href="generate.html" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Studio</a>
+      <a href="library.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Library</a>
+    </div>
+  </nav>
+
+  <main class="page-narrow">
+    <h1 style="font-size: 1.6rem; margin-bottom: 4px;">Generate a Script</h1>
+    <p style="color: var(--text-muted); margin-top: 0;">From one activity to the next.</p>
+
+    <div class="form-card">
+      <form id="transitionForm">
+        <label for="profileSelect">For</label>
+        <select id="profileSelect">
+          <option value="">No profile (general)</option>
+        </select>
+
+        <label for="currentActivity">Right now, doing:</label>
+        <input type="text" id="currentActivity" placeholder="e.g. reading time" required />
+
+        <label for="nextActivity">Next, doing:</label>
+        <input type="text" id="nextActivity" placeholder="e.g. math worksheet" required />
+
+        <label for="notes">Anything extra for this transition (optional):</label>
+        <textarea id="notes" placeholder="e.g. this one is happening earlier than usual"></textarea>
+
+        <button type="submit" id="generateBtn" class="btn-primary">Get my transition</button>
+      </form>
+    </div>
+
+    <section id="result" class="result hidden">
+      <h2>Here's what's happening:</h2>
+      <p id="scriptText"></p>
+
+      <div class="feedback">
+        <p>Did this help?</p>
+        <button class="feedback-btn" data-value="yes">🙂 Yes</button>
+        <button class="feedback-btn" data-value="somewhat">😐 Somewhat</button>
+        <button class="feedback-btn" data-value="no">🙁 Not really</button>
+      </div>
+      <p id="feedbackThanks" class="hidden">Thanks — this helps us make it better.</p>
+
+      <button id="saveBtn" class="btn-secondary" style="margin-top: 14px;">Save to Library</button>
+      <p id="saveConfirm" class="hidden" style="color: var(--accent); margin-top: 10px;">Saved!</p>
+    </section>
+
+    <p id="errorText" class="error hidden"></p>
+  </main>
+
+  <script src="app-data.js"></script>
+  <script>
+    const profileSelect = document.getElementById("profileSelect");
+    const profiles = AppData.getProfiles();
+    profiles.forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = `${p.name} (${p.type} · ${p.tone})`;
+      profileSelect.appendChild(opt);
+    });
+
+    // Pre-select profile from ?profile=ID in the URL, if present
+    const params = new URLSearchParams(window.location.search);
+    const preselectedId = params.get("profile");
+    if (preselectedId) profileSelect.value = preselectedId;
+
+    const form = document.getElementById("transitionForm");
+    const resultSection = document.getElementById("result");
+    const scriptText = document.getElementById("scriptText");
+    const errorText = document.getElementById("errorText");
+    const generateBtn = document.getElementById("generateBtn");
+    const feedbackThanks = document.getElementById("feedbackThanks");
+    const saveBtn = document.getElementById("saveBtn");
+    const saveConfirm = document.getElementById("saveConfirm");
+
+    let lastGenerated = null;
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      errorText.classList.add("hidden");
+      feedbackThanks.classList.add("hidden");
+      saveConfirm.classList.add("hidden");
+      generateBtn.disabled = true;
+      generateBtn.textContent = "Thinking...";
+
+      const currentActivity = document.getElementById("currentActivity").value;
+      const nextActivity = document.getElementById("nextActivity").value;
+      const extraNotes = document.getElementById("notes").value;
+
+      const profile = profileSelect.value ? AppData.getProfile(profileSelect.value) : null;
+
+      // Merge profile info into the notes sent to the backend, since the
+      // API only takes a flat notes string.
+      let combinedNotes = "";
+      if (profile) {
+        combinedNotes += `This is for ${profile.name}, a ${profile.type.toLowerCase()}. `;
+        combinedNotes += `Preferred tone: ${profile.tone}. `;
+        if (profile.notes) combinedNotes += `What helps them: ${profile.notes}. `;
+      }
+      if (extraNotes) combinedNotes += extraNotes;
+
+      try {
+        const response = await fetch("/api/transition", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ currentActivity, nextActivity, notes: combinedNotes }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Something went wrong.");
+
+        scriptText.textContent = data.script;
+        resultSection.classList.remove("hidden");
+
+        lastGenerated = {
+          profileId: profile ? profile.id : null,
+          profileName: profile ? profile.name : "General",
+          currentActivity,
+          nextActivity,
+          script: data.script,
+        };
+      } catch (err) {
+        errorText.textContent = "Couldn't generate a transition: " + err.message;
+        errorText.classList.remove("hidden");
+      } finally {
+        generateBtn.disabled = false;
+        generateBtn.textContent = "Get my transition";
+      }
+    });
+
+    document.querySelectorAll(".feedback-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        console.log("Feedback:", btn.getAttribute("data-value"));
+        feedbackThanks.classList.remove("hidden");
+      });
+    });
+
+    saveBtn.addEventListener("click", () => {
+      if (!lastGenerated) return;
+      AppData.saveScript(lastGenerated);
+      saveConfirm.classList.remove("hidden");
+    });
+  </script>
+</body>
+</html>
