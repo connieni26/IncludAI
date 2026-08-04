@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profiles — Transition Translator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <div class="nav-logo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 2a2.5 2.5 0 0 0-2.5 2.5v.5a2.5 2.5 0 0 0-2.5 2.5c0 .6.2 1.2.5 1.6A2.5 2.5 0 0 0 2 11.5 2.5 2.5 0 0 0 4.5 14a2.5 2.5 0 0 0 2 4.4A2.5 2.5 0 0 0 9 21a2.5 2.5 0 0 0 2.5-2.5v-14A2.5 2.5 0 0 0 9.5 2Z"/><path d="M14.5 2a2.5 2.5 0 0 1 2.5 2.5v.5a2.5 2.5 0 0 1 2.5 2.5c0 .6-.2 1.2-.5 1.6a2.5 2.5 0 0 1 1 3.4A2.5 2.5 0 0 1 19.5 16a2.5 2.5 0 0 1-2 3.4A2.5 2.5 0 0 1 15 21a2.5 2.5 0 0 1-2.5-2.5v-14A2.5 2.5 0 0 1 14.5 2Z"/></svg>
+      </div>
+      <span>Transition Translator</span>
+    </div>
+    <div class="nav-links">
+      <a href="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Home</a>
+      <a href="profiles.html" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Profiles</a>
+      <a href="generate.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Studio</a>
+      <a href="library.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Library</a>
+    </div>
+  </nav>
+
+  <main class="page-narrow">
+    <h1 style="font-size: 1.6rem; margin-bottom: 4px;">Create a Profile</h1>
+    <p style="color: var(--text-muted); margin-top: 0;">Describe how this person experiences transitions. This shapes every script generated for them.</p>
+
+    <div class="form-card">
+      <form id="profileForm">
+        <label for="name">Name (or nickname)</label>
+        <input type="text" id="name" placeholder="e.g. Alex" required />
+
+        <label>Type</label>
+        <div class="chip-group" id="typeChips">
+          <button type="button" class="chip" data-value="Child">Child</button>
+          <button type="button" class="chip" data-value="Teen">Teen</button>
+          <button type="button" class="chip" data-value="Adult">Adult</button>
+        </div>
+
+        <label>Preferred tone</label>
+        <div class="chip-group" id="toneChips">
+          <button type="button" class="chip" data-value="Gentle">Gentle</button>
+          <button type="button" class="chip" data-value="Direct">Direct</button>
+          <button type="button" class="chip" data-value="Playful">Playful</button>
+        </div>
+
+        <label for="notes">What helps them with transitions</label>
+        <textarea id="notes" placeholder="e.g. likes a countdown, needs to know exactly how many minutes, gets overwhelmed by surprises"></textarea>
+
+        <button type="submit" class="btn-primary">Save Profile</button>
+      </form>
+    </div>
+
+    <h2 class="section-title">Saved Profiles</h2>
+    <div id="profileList"></div>
+  </main>
+
+  <script src="app-data.js"></script>
+  <script>
+    const typeChips = document.querySelectorAll("#typeChips .chip");
+    const toneChips = document.querySelectorAll("#toneChips .chip");
+    let selectedType = null;
+    let selectedTone = null;
+
+    typeChips.forEach((chip) =>
+      chip.addEventListener("click", () => {
+        typeChips.forEach((c) => c.classList.remove("selected"));
+        chip.classList.add("selected");
+        selectedType = chip.dataset.value;
+      })
+    );
+    toneChips.forEach((chip) =>
+      chip.addEventListener("click", () => {
+        toneChips.forEach((c) => c.classList.remove("selected"));
+        chip.classList.add("selected");
+        selectedTone = chip.dataset.value;
+      })
+    );
+
+    document.getElementById("profileForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (!selectedType || !selectedTone) {
+        alert("Please choose a type and a tone.");
+        return;
+      }
+      const profile = {
+        name: document.getElementById("name").value,
+        type: selectedType,
+        tone: selectedTone,
+        notes: document.getElementById("notes").value,
+      };
+      AppData.saveProfile(profile);
+      e.target.reset();
+      typeChips.forEach((c) => c.classList.remove("selected"));
+      toneChips.forEach((c) => c.classList.remove("selected"));
+      selectedType = null;
+      selectedTone = null;
+      renderProfiles();
+    });
+
+    function renderProfiles() {
+      const list = document.getElementById("profileList");
+      const profiles = AppData.getProfiles();
+
+      if (profiles.length === 0) {
+        list.innerHTML = `<div class="empty-state">No profiles yet — create one above.</div>`;
+        return;
+      }
+
+      list.innerHTML = profiles
+        .map(
+          (p) => `
+        <div class="list-item">
+          <div>
+            <h4>${escapeHtml(p.name)}</h4>
+            <div class="meta">${escapeHtml(p.type)} · ${escapeHtml(p.tone)}${p.notes ? " · " + escapeHtml(p.notes) : ""}</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <a href="generate.html?profile=${p.id}" class="btn-secondary">Generate</a>
+            <button class="btn-secondary" onclick="removeProfile('${p.id}')">Delete</button>
+          </div>
+        </div>`
+        )
+        .join("");
+    }
+
+    function removeProfile(id) {
+      if (confirm("Delete this profile?")) {
+        AppData.deleteProfile(id);
+        renderProfiles();
+      }
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    renderProfiles();
+  </script>
+</body>
+</html>
