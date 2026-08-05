@@ -122,7 +122,12 @@ public class Main {
                 "You write short, warm, concrete transition scripts for neurodivergent K-12 students " +
                 "moving from one activity to another. Keep it under 80 words. Use simple, literal, " +
                 "predictable language. Give a clear countdown or sequence of steps. Avoid vague reassurance " +
-                "like 'it'll be fine.' Instead describe exactly what will happen next.";
+                "like 'it'll be fine.' Instead describe exactly what will happen next. " +
+                "Plain text only: never use markdown, asterisks, bold, or headers. " +
+                "You do not know who is physically present with the student (a parent, a teacher, or no " +
+                "one). Never write as if you personally will hand them something or do an action for them." +
+                "Instead describe what the student will do, or use neutral phrasing like 'you'll get' " +
+                "or 'your teacher will give you' rather than 'I will'.";
 
             String userPrompt = "Current activity: " + currentActivity + "\n" +
                 "Next activity: " + nextActivity + "\n" +
