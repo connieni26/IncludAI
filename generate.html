@@ -26,7 +26,8 @@
     <h1 style="font-size: 1.6rem; margin-bottom: 4px;">Generate a Script</h1>
     <p style="color: var(--text-muted); margin-top: 0;">From one activity to the next.</p>
 
-    <div class="form-card">
+    <!-- Step 1: the input form -->
+    <div class="form-card" id="formCard">
       <form id="transitionForm">
         <label for="profileSelect">For</label>
         <select id="profileSelect">
@@ -46,69 +47,108 @@
       </form>
     </div>
 
-    <section id="result" class="result hidden">
-      <h2>Here's what's happening:</h2>
-      <p id="scriptText"></p>
-
-      <div class="feedback">
-        <p>Did this help?</p>
-        <button class="feedback-btn" data-value="yes">🙂 Yes</button>
-        <button class="feedback-btn" data-value="somewhat">😐 Somewhat</button>
-        <button class="feedback-btn" data-value="no">🙁 Not really</button>
-      </div>
-      <p id="feedbackThanks" class="hidden">Thanks — this helps us make it better.</p>
-
-      <button id="saveBtn" class="btn-secondary" style="margin-top: 14px;">Save to Library</button>
-      <p id="saveConfirm" class="hidden" style="color: var(--accent); margin-top: 10px;">Saved!</p>
-    </section>
-
     <p id="errorText" class="error hidden"></p>
+
+    <!-- Step 2: the walkthrough, shown after a script is generated -->
+    <section id="walkthrough" class="form-card hidden" style="margin-top: 20px;">
+      <div class="timer-bar">
+        <span id="timerLabel">Starting in</span>
+        <span class="timer-clock" id="timerClock">--:--</span>
+      </div>
+
+      <div id="reasonBanner" class="reason-banner hidden"></div>
+
+      <!-- Intro screen -->
+      <div id="introScreen" class="step-card">
+        <p id="greetingText" style="font-size: 1.15rem; font-weight: 600;"></p>
+        <div class="step-nav">
+          <button class="btn-next" id="startStepsBtn">Show me what's happening</button>
+        </div>
+        <button class="btn-read" id="readIntroBtn">🔊 Read this aloud</button>
+      </div>
+
+      <!-- Step-by-step screen -->
+      <div id="stepScreen" class="hidden">
+        <div class="progress-dots" id="progressDots"></div>
+        <div class="step-card">
+          <div class="step-icon" id="stepIcon"></div>
+          <p class="step-text" id="stepText"></p>
+          <div class="step-nav">
+            <button class="btn-back hidden" id="backBtn">Back</button>
+            <button class="btn-next" id="nextBtn">Next</button>
+          </div>
+          <button class="btn-read" id="readStepBtn">🔊 Read this aloud</button>
+        </div>
+        <button class="btn-extend" id="extendBtn">I need more time before this starts</button>
+        <p id="extendToast" class="extend-toast hidden"></p>
+      </div>
+
+      <!-- Closing screen -->
+      <div id="closingScreen" class="hidden">
+        <div class="closing-card">
+          <div class="closing-check">✓</div>
+          <p class="step-text" id="closingText"></p>
+          <button class="btn-read" id="readClosingBtn">🔊 Read this aloud</button>
+        </div>
+
+        <div class="feedback">
+          <p>Did this help?</p>
+          <button class="feedback-btn" data-value="yes">🙂 Yes</button>
+          <button class="feedback-btn" data-value="somewhat">😐 Somewhat</button>
+          <button class="feedback-btn" data-value="no">🙁 Not really</button>
+        </div>
+        <p id="feedbackThanks" class="hidden">Thanks — this helps us make it better.</p>
+
+        <button id="saveBtn" class="btn-secondary" style="margin-top: 14px;">Save to Library</button>
+        <p id="saveConfirm" class="hidden" style="color: var(--accent); margin-top: 10px;">Saved!</p>
+      </div>
+    </section>
   </main>
 
   <script src="app-data.js"></script>
   <script>
+    // Maps the model's controlled icon vocabulary to an emoji shown in the step circle.
+    const ICONS = {
+      book: "📖", pencil: "✏️", clock: "🕐", chair: "🪑", backpack: "🎒",
+      hand: "✋", star: "⭐", check: "✅", walk: "🚶", sit: "🧎", listen: "👂",
+    };
+
     const profileSelect = document.getElementById("profileSelect");
-    const profiles = AppData.getProfiles();
-    profiles.forEach((p) => {
+    AppData.getProfiles().forEach((p) => {
       const opt = document.createElement("option");
       opt.value = p.id;
       opt.textContent = `${p.name} (${p.type} · ${p.tone})`;
       profileSelect.appendChild(opt);
     });
-
-    // Pre-select profile from ?profile=ID in the URL, if present
     const params = new URLSearchParams(window.location.search);
     const preselectedId = params.get("profile");
     if (preselectedId) profileSelect.value = preselectedId;
 
     const form = document.getElementById("transitionForm");
-    const resultSection = document.getElementById("result");
-    const scriptText = document.getElementById("scriptText");
     const errorText = document.getElementById("errorText");
     const generateBtn = document.getElementById("generateBtn");
-    const feedbackThanks = document.getElementById("feedbackThanks");
-    const saveBtn = document.getElementById("saveBtn");
-    const saveConfirm = document.getElementById("saveConfirm");
+    const formCard = document.getElementById("formCard");
+    const walkthrough = document.getElementById("walkthrough");
 
-    let lastGenerated = null;
+    let data = null;         // parsed response from the backend
+    let currentStep = 0;     // index into data.steps
+    let remainingSeconds = 0;
+    let timerInterval = null;
+    let lastGenerated = null; // flattened record for the library
+    let currentProfileName = "General";
+    let currentActivities = { current: "", next: "" };
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-
       errorText.classList.add("hidden");
-      feedbackThanks.classList.add("hidden");
-      saveConfirm.classList.add("hidden");
       generateBtn.disabled = true;
       generateBtn.textContent = "Thinking...";
 
       const currentActivity = document.getElementById("currentActivity").value;
       const nextActivity = document.getElementById("nextActivity").value;
       const extraNotes = document.getElementById("notes").value;
-
       const profile = profileSelect.value ? AppData.getProfile(profileSelect.value) : null;
 
-      // Merge profile info into the notes sent to the backend, since the
-      // API only takes a flat notes string.
       let combinedNotes = "";
       if (profile) {
         combinedNotes += `This is for ${profile.name}, a ${profile.type.toLowerCase()}. `;
@@ -117,26 +157,20 @@
       }
       if (extraNotes) combinedNotes += extraNotes;
 
+      currentProfileName = profile ? profile.name : "General";
+      currentActivities = { current: currentActivity, next: nextActivity };
+
       try {
         const response = await fetch("/api/transition", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ currentActivity, nextActivity, notes: combinedNotes }),
         });
+        const json = await response.json();
+        if (!response.ok) throw new Error(json.error || "Something went wrong.");
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Something went wrong.");
-
-        scriptText.textContent = data.script;
-        resultSection.classList.remove("hidden");
-
-        lastGenerated = {
-          profileId: profile ? profile.id : null,
-          profileName: profile ? profile.name : "General",
-          currentActivity,
-          nextActivity,
-          script: data.script,
-        };
+        data = json;
+        startWalkthrough();
       } catch (err) {
         errorText.textContent = "Couldn't generate a transition: " + err.message;
         errorText.classList.remove("hidden");
@@ -146,17 +180,158 @@
       }
     });
 
+    function startWalkthrough() {
+      formCard.classList.add("hidden");
+      walkthrough.classList.remove("hidden");
+      document.getElementById("introScreen").classList.remove("hidden");
+      document.getElementById("stepScreen").classList.add("hidden");
+      document.getElementById("closingScreen").classList.add("hidden");
+
+      document.getElementById("greetingText").textContent = data.greeting;
+
+      const reasonBanner = document.getElementById("reasonBanner");
+      if (data.reason && data.reason.trim() !== "") {
+        reasonBanner.textContent = "Heads up: " + data.reason;
+        reasonBanner.classList.remove("hidden");
+      } else {
+        reasonBanner.classList.add("hidden");
+      }
+
+      currentStep = 0;
+      remainingSeconds = Math.max(0, parseInt(data.minutes || "0", 10)) * 60;
+      updateTimerDisplay();
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        if (remainingSeconds > 0) {
+          remainingSeconds--;
+          updateTimerDisplay();
+        } else {
+          document.getElementById("timerLabel").textContent = "Starting now";
+        }
+      }, 1000);
+
+      renderProgressDots();
+    }
+
+    function updateTimerDisplay() {
+      const mins = Math.floor(remainingSeconds / 60);
+      const secs = remainingSeconds % 60;
+      document.getElementById("timerClock").textContent =
+        `${mins}:${secs.toString().padStart(2, "0")}`;
+      document.getElementById("timerLabel").textContent =
+        remainingSeconds > 0 ? "Starting in" : "Starting now";
+    }
+
+    function renderProgressDots() {
+      const dots = document.getElementById("progressDots");
+      dots.innerHTML = data.steps
+        .map((_, i) => {
+          let cls = "dot";
+          if (i === currentStep) cls += " active";
+          else if (i < currentStep) cls += " done";
+          return `<span class="${cls}"></span>`;
+        })
+        .join("");
+    }
+
+    document.getElementById("startStepsBtn").addEventListener("click", () => {
+      document.getElementById("introScreen").classList.add("hidden");
+      document.getElementById("stepScreen").classList.remove("hidden");
+      showStep();
+    });
+
+    function showStep() {
+      const step = data.steps[currentStep];
+      document.getElementById("stepIcon").textContent = ICONS[step.icon] || "➡️";
+      document.getElementById("stepText").textContent = step.text;
+      document.getElementById("backBtn").classList.toggle("hidden", currentStep === 0);
+      document.getElementById("nextBtn").textContent =
+        currentStep === data.steps.length - 1 ? "Done" : "Next";
+      renderProgressDots();
+    }
+
+    document.getElementById("nextBtn").addEventListener("click", () => {
+      if (currentStep < data.steps.length - 1) {
+        currentStep++;
+        showStep();
+      } else {
+        showClosing();
+      }
+    });
+
+    document.getElementById("backBtn").addEventListener("click", () => {
+      if (currentStep > 0) {
+        currentStep--;
+        showStep();
+      }
+    });
+
+    // "I need more time" — extends the local timer without another API call,
+    // so a student can push back the transition without losing their place.
+    document.getElementById("extendBtn").addEventListener("click", () => {
+      remainingSeconds += 120;
+      updateTimerDisplay();
+      const toast = document.getElementById("extendToast");
+      toast.textContent = "Okay — taking 2 more minutes.";
+      toast.classList.remove("hidden");
+      setTimeout(() => toast.classList.add("hidden"), 3000);
+    });
+
+    function showClosing() {
+      if (timerInterval) clearInterval(timerInterval);
+      document.getElementById("stepScreen").classList.add("hidden");
+      document.getElementById("closingScreen").classList.remove("hidden");
+      document.getElementById("closingText").textContent = data.closing;
+
+      lastGenerated = {
+        profileId: profileSelect.value || null,
+        profileName: currentProfileName,
+        currentActivity: currentActivities.current,
+        nextActivity: currentActivities.next,
+        script: flattenForLibrary(),
+      };
+    }
+
+    function flattenForLibrary() {
+      let out = data.greeting + "\n\n";
+      if (data.reason && data.reason.trim() !== "") out += "Heads up: " + data.reason + "\n\n";
+      data.steps.forEach((s, i) => {
+        out += `${i + 1}. ${s.text}\n`;
+      });
+      out += "\n" + data.closing;
+      return out;
+    }
+
+    // ---- Read aloud (built into the browser, no extra API calls) ----
+    function readAloud(text) {
+      if (!("speechSynthesis" in window)) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 0.95;
+      window.speechSynthesis.speak(utter);
+    }
+    document.getElementById("readIntroBtn").addEventListener("click", () => {
+      readAloud(data.greeting + (data.reason ? ". " + data.reason : ""));
+    });
+    document.getElementById("readStepBtn").addEventListener("click", () => {
+      readAloud(data.steps[currentStep].text);
+    });
+    document.getElementById("readClosingBtn").addEventListener("click", () => {
+      readAloud(data.closing);
+    });
+
+    // ---- Feedback + save ----
     document.querySelectorAll(".feedback-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         console.log("Feedback:", btn.getAttribute("data-value"));
-        feedbackThanks.classList.remove("hidden");
+        document.getElementById("feedbackThanks").classList.remove("hidden");
       });
     });
 
-    saveBtn.addEventListener("click", () => {
+    document.getElementById("saveBtn").addEventListener("click", () => {
       if (!lastGenerated) return;
       AppData.saveScript(lastGenerated);
-      saveConfirm.classList.remove("hidden");
+      document.getElementById("saveConfirm").classList.remove("hidden");
     });
   </script>
 </body>
