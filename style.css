@@ -370,3 +370,162 @@ button {
   color: #b3261e;
   margin-top: 16px;
 }
+
+/* ---- Step-through generator UI ---- */
+
+.timer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--accent-light);
+  border-radius: 10px;
+  padding: 12px 18px;
+  margin-bottom: 18px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.timer-bar .timer-clock {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.1rem;
+}
+
+.reason-banner {
+  background: #fbf3e3;
+  border: 1px solid #ecdcb0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  font-size: 0.92rem;
+  color: #6b5b2a;
+}
+
+.progress-dots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.dot.active {
+  background: var(--accent);
+  transform: scale(1.2);
+}
+
+.dot.done {
+  background: var(--accent-light);
+  border: 1.5px solid var(--accent);
+}
+
+.step-card {
+  text-align: center;
+  padding: 20px 10px 8px;
+}
+
+.step-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--accent-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  margin: 0 auto 18px;
+}
+
+.step-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 24px;
+  line-height: 1.4;
+}
+
+.step-nav {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.step-nav button {
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+}
+
+.btn-next {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-back {
+  background: white;
+  border: 1px solid var(--border) !important;
+  color: var(--text-muted);
+}
+
+.btn-extend {
+  display: block;
+  margin: 14px auto 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  text-decoration: underline;
+  font-size: 0.88rem;
+}
+
+.btn-extend:hover {
+  color: var(--accent);
+}
+
+.btn-read {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin-top: 10px;
+}
+
+.btn-read:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.closing-card {
+  text-align: center;
+  padding: 10px;
+}
+
+.closing-check {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  font-size: 1.6rem;
+}
+
+.extend-toast {
+  text-align: center;
+  color: var(--accent);
+  font-size: 0.88rem;
+  margin-top: 8px;
+}

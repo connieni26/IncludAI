@@ -15,7 +15,8 @@ import java.util.Map;
 import java.util.HashMap;
 
 public class Main {
-    // Read the API key from an environment variable
+
+    // Read the API key from an environment variable — never hardcode it.
     private static final String API_KEY = System.getenv("ANTHROPIC_API_KEY");
     private static final String ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
     private static final HttpClient httpClient = HttpClient.newHttpClient();
@@ -50,13 +51,9 @@ public class Main {
             }
 
             String contentType = "text/plain";
-            if (path.endsWith(".html")) {
-                contentType = "text/html";
-            } else if (path.endsWith(".css"))
-                contentType = "text/css";
-            else if (path.endsWith(".js")) {
-                contentType = "application/javascript";
-            }
+            if (path.endsWith(".html")) contentType = "text/html";
+            else if (path.endsWith(".css")) contentType = "text/css";
+            else if (path.endsWith(".js")) contentType = "application/javascript";
 
             byte[] bytes = Files.readAllBytes(filePath);
             exchange.getResponseHeaders().set("Content-Type", contentType);
@@ -95,9 +92,8 @@ public class Main {
                 String nextActivity = fields.getOrDefault("nextActivity", "");
                 String notes = fields.getOrDefault("notes", "");
 
-                String script = callClaude(currentActivity, nextActivity, notes);
-
-                String responseJson = "{\"script\": " + jsonEscape(script) + "}";
+                String rawScript = callClaude(currentActivity, nextActivity, notes);
+                String responseJson = buildStructuredJson(rawScript);
                 byte[] responseBytes = responseJson.getBytes(StandardCharsets.UTF_8);
 
                 exchange.getResponseHeaders().set("Content-Type", "application/json");
@@ -119,15 +115,27 @@ public class Main {
         /** Calls the Anthropic API and returns the generated transition script text. */
         private String callClaude(String currentActivity, String nextActivity, String notes) throws Exception {
             String systemPrompt =
-                "You write short, warm, concrete transition scripts for neurodivergent K-12 students " +
-                "moving from one activity to another. Keep it under 80 words. Use simple, literal, " +
-                "predictable language. Give a clear countdown or sequence of steps. Avoid vague reassurance " +
-                "like 'it'll be fine.' Instead describe exactly what will happen next. " +
-                "Plain text only: never use markdown, asterisks, bold, or headers. " +
-                "You do not know who is physically present with the student (a parent, a teacher, or no " +
-                "one). Never write as if you personally will hand them something or do an action for them." +
-                "Instead describe what the student will do, or use neutral phrasing like 'you'll get' " +
-                "or 'your teacher will give you' rather than 'I will'.";
+                "You write transition scripts for neurodivergent K-12 students moving from one activity " +
+                "to another. Respond in EXACTLY this plain-text format, nothing else, no markdown, no extra " +
+                "commentary before or after:\n\n" +
+                "MINUTES: <number of minutes until the transition starts, digits only>\n" +
+                "REASON: <one short sentence if anything is different from the student's usual routine today, " +
+                "otherwise leave this line blank after the colon>\n" +
+                "GREETING: <one short warm sentence introducing the transition>\n" +
+                "STEP: [icon] <step text>\n" +
+                "STEP: [icon] <step text>\n" +
+                "(3 to 5 STEP lines total, each on its own line)\n" +
+                "CLOSING: <one short sentence confirming the transition is complete and naming the next activity>\n\n" +
+                "For [icon], choose exactly one word from this list that best matches each step: " +
+                "book, pencil, clock, chair, backpack, hand, star, check, walk, sit, listen. " +
+                "Keep every line concise, literal, and predictable. You do not know who, if anyone, is " +
+                "physically present with the student — do not assume a teacher, parent, or any other person " +
+                "is in the room, and do not invent actions, promises, or rewards from other people (for " +
+                "example, do not say a teacher will give a warning, a sticker, or anything else) unless the " +
+                "student's own notes explicitly mention that person and what they do. Every step should " +
+                "describe only what the student themselves will do, see, or notice, using neutral phrasing " +
+                "like 'you'll notice' or 'you'll get' rather than referring to what a specific other person " +
+                "will do.";
 
             String userPrompt = "Current activity: " + currentActivity + "\n" +
                 "Next activity: " + nextActivity + "\n" +
@@ -211,6 +219,65 @@ public class Main {
                 }
             }
             return sb.toString();
+        }
+
+        /**
+         * Parses the model's structured plain-text response (MINUTES/REASON/GREETING/STEP/CLOSING
+         * lines) into a JSON object the frontend can render as a step-by-step UI.
+         */
+        private String buildStructuredJson(String raw) {
+            // Defensive cleanup in case the model still emits stray markdown.
+            raw = raw.replace("**", "").replace("__", "").replace("##", "");
+
+            String minutes = "0";
+            String reason = "";
+            String greeting = "";
+            String closing = "";
+            java.util.List<String[]> steps = new java.util.ArrayList<>(); // [icon, text]
+
+            for (String rawLine : raw.split("\n")) {
+                String line = rawLine.trim();
+                if (line.isEmpty()) continue;
+
+                if (line.startsWith("MINUTES:")) {
+                    String digits = line.substring("MINUTES:".length()).trim().replaceAll("[^0-9]", "");
+                    minutes = digits.isEmpty() ? "0" : digits;
+                } else if (line.startsWith("REASON:")) {
+                    reason = line.substring("REASON:".length()).trim();
+                } else if (line.startsWith("GREETING:")) {
+                    greeting = line.substring("GREETING:".length()).trim();
+                } else if (line.startsWith("CLOSING:")) {
+                    closing = line.substring("CLOSING:".length()).trim();
+                } else if (line.startsWith("STEP:")) {
+                    String rest = line.substring("STEP:".length()).trim();
+                    String icon = "check";
+                    String text = rest;
+                    if (rest.startsWith("[")) {
+                        int close = rest.indexOf(']');
+                        if (close != -1) {
+                            icon = rest.substring(1, close).trim().toLowerCase();
+                            text = rest.substring(close + 1).trim();
+                        }
+                    }
+                    steps.add(new String[]{icon, text});
+                }
+            }
+
+            StringBuilder stepsJson = new StringBuilder("[");
+            for (int i = 0; i < steps.size(); i++) {
+                if (i > 0) stepsJson.append(",");
+                stepsJson.append("{\"icon\": ").append(jsonEscape(steps.get(i)[0]))
+                    .append(", \"text\": ").append(jsonEscape(steps.get(i)[1])).append("}");
+            }
+            stepsJson.append("]");
+
+            return "{"
+                + "\"minutes\": " + minutes + ","
+                + "\"reason\": " + jsonEscape(reason) + ","
+                + "\"greeting\": " + jsonEscape(greeting) + ","
+                + "\"steps\": " + stepsJson + ","
+                + "\"closing\": " + jsonEscape(closing)
+                + "}";
         }
 
         /** Escapes a string for safe embedding in JSON. */
