@@ -23,27 +23,73 @@
   </nav>
 
   <main class="page-narrow">
-    <h1 style="font-size: 1.6rem; margin-bottom: 4px;">Generate a Script</h1>
-    <p style="color: var(--text-muted); margin-top: 0;">From one activity to the next.</p>
+  <div class="studio-heading">
+    <span class="studio-kicker">Step 1 of 3</span>
+    <h1>Plan the transition</h1>
+    <p>Tell us what is happening now and what comes next.</p>
+  </div>
 
     <!-- Step 1: the input form -->
     <div class="form-card" id="formCard">
       <form id="transitionForm">
-        <label for="profileSelect">For</label>
-        <select id="profileSelect">
-          <option value="">No profile (general)</option>
-        </select>
+        <div class="form-section">
+  <div class="form-section-number">1</div>
 
-        <label for="currentActivity">Right now, doing:</label>
-        <input type="text" id="currentActivity" placeholder="e.g. reading time" required />
+  <div class="form-section-content">
+    <label for="profileSelect">Who is this for?</label>
+    <select id="profileSelect">
+      <option value="">No profile (general)</option>
+    </select>
+    <p class="field-help">Choose a saved profile for more personalized guidance.</p>
+  </div>
+</div>
 
-        <label for="nextActivity">Next, doing:</label>
-        <input type="text" id="nextActivity" placeholder="e.g. math worksheet" required />
+<div class="form-section">
+  <div class="form-section-number">2</div>
 
-        <label for="notes">Anything extra for this transition (optional):</label>
-        <textarea id="notes" placeholder="e.g. this one is happening earlier than usual"></textarea>
+  <div class="form-section-content">
+    <label for="currentActivity">What are they doing now?</label>
+    <input
+      type="text"
+      id="currentActivity"
+      placeholder="For example: reading time"
+      required
+    />
+  </div>
+</div>
 
-        <button type="submit" id="generateBtn" class="btn-primary">Get my transition</button>
+<div class="transition-arrow" aria-hidden="true">↓</div>
+
+<div class="form-section">
+  <div class="form-section-number">3</div>
+
+  <div class="form-section-content">
+    <label for="nextActivity">What comes next?</label>
+    <input
+      type="text"
+      id="nextActivity"
+      placeholder="For example: math class"
+      required
+    />
+  </div>
+</div>
+
+<div class="form-section form-section-optional">
+  <div class="form-section-icon">✦</div>
+
+  <div class="form-section-content">
+    <label for="notes">Is anything different today?</label>
+    <textarea
+      id="notes"
+      placeholder="For example: this transition is happening earlier than usual"
+    ></textarea>
+    <p class="field-help">Optional</p>
+  </div>
+</div>
+
+<button type="submit" id="generateBtn" class="btn-primary">
+  Create Transition Guide
+</button>
       </form>
     </div>
 
